@@ -59,7 +59,7 @@ export class DiscordApp {
       }
     }
   }
-  private _listenEvent() {
+  private _listenEvents() {
     if (!this._client) {
       throw new Error("The app have not initialized. Let's call Init() first!");
     }
@@ -84,6 +84,7 @@ export class DiscordApp {
         }
       } catch (error: any) {
         await ctx.ReplyMessage(error?.message || 'Error occurred');
+        return;
       }
     });
   }
@@ -94,6 +95,7 @@ export class DiscordApp {
     this._client.once(Events.ClientReady, (readyClient) => {
       cb(readyClient);
     });
+    this._listenEvents();
     await this._client.login(this._config.discordBotToken);
   }
 }
