@@ -1,0 +1,17 @@
+
+.PHONY: test
+all: build
+build:
+	rm -rf .out
+	npm run build
+install:
+	npm install
+link:
+	npm link
+publish:
+	npm publish --access public
+clean: 
+	rm -rf node_modules
+	rm -rf .out
+test:
+	npm run test

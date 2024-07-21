@@ -1,0 +1,25 @@
+{
+  "name": "nithjs-discord",
+  "version": "0.0.1",
+  "main": ".out/main.js",
+  "types": ".out/main.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "keywords": [
+    "framework",
+    "expressjs",
+    "nithjs"
+  ],
+  "author": "bao.ledaocong <cbstorm.dev@gmail.com>",
+  "license": "ISC",
+  "description": "nithjs Discord App",
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3"
+  }
+}
