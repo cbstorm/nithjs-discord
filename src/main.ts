@@ -13,7 +13,7 @@ export interface IDiscordAppConfig {
 export class DiscordApp {
   private _config: IDiscordAppConfig;
   private _client?: Client<boolean>;
-  private _channels: { name: string; id: string }[] = [];
+  private _channels: { [id: string]: string } = {};
   private _handlers: { [eventName: string]: DiscordEvent } = {};
 
   constructor(config: IDiscordAppConfig) {
@@ -34,6 +34,15 @@ export class DiscordApp {
     });
     return this;
   }
+
+  private _saveChannels(e: Message<boolean>) {
+    const [channelId, channelName] = [e.channelId, (e.channel as any).name];
+    this._channels[this._hashChannelName(channelName)] = channelId;
+  }
+  private _hashChannelName(channel_name: string) {
+    return Buffer.from(channel_name, 'utf-8').toString('hex');
+  }
+
   LoadHandler(cb?: (eventName: string) => void) {
     const p = this._config.handlerPath!;
     const handler_files = loadFileSync(p, [], {
@@ -45,7 +54,7 @@ export class DiscordApp {
     }
     for (const f of handler_files) {
       const handlers = require(f);
-      if (!handlers?.length) {
+      if (!Object.values(handlers)?.length) {
         continue;
       }
       for (const h of Object.values(handlers)) {
@@ -58,6 +67,7 @@ export class DiscordApp {
         }
       }
     }
+    return this;
   }
   private _listenEvents() {
     if (!this._client) {
@@ -66,6 +76,7 @@ export class DiscordApp {
     this._client.on('messageCreate', async (e: Message<boolean>) => {
       if (e.author.bot) return;
       if (!e.content) return;
+      this._saveChannels(e);
       const eventName = e.content
         .slice(0, this._config.maxLengthOfEventName! + 1)
         .split(' ')
@@ -83,7 +94,9 @@ export class DiscordApp {
           });
         }
       } catch (error: any) {
-        await ctx.ReplyMessage(error?.message || 'Error occurred');
+        await ctx.ReplyMessage(error?.message || 'Error occurred').catch((err) => {
+          console.log(err);
+        });
         return;
       }
     });

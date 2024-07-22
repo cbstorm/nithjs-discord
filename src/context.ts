@@ -18,6 +18,9 @@ export class DiscordContext {
   GetClient() {
     return this._client;
   }
+  GetContent() {
+    return this._event.content;
+  }
   Next() {
     this._e.emit('next');
     return;
