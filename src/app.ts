@@ -1,26 +1,16 @@
+import { CronJob } from 'cron';
 import { Client, Events, GatewayIntentBits, Message, TextBasedChannel } from 'discord.js';
 import * as path from 'path';
-import { DiscordContext } from './context';
-import { loadFileSync } from './utils';
-
-export interface IChannels {
-  [channelName: string]: string;
-}
-
-export interface IDiscordAppConfig {
-  discordBotToken: string;
-  handlerPath?: string;
-  handlerPattern?: string;
-  maxLengthOfEventName?: number;
-  saveChannelsState?: (channels: IChannels) => void;
-  loadChannelsState?: () => Promise<IChannels>;
-}
+import { DiscordContext, DiscordEventContext } from './context';
+import { IChannels, IDiscordAppConfig, IDiscordEventConfig } from './interfaces';
+import { DiscordUtils, loadFileSync } from './utils';
 
 export class DiscordApp {
   private _config: IDiscordAppConfig;
   private _client?: Client<boolean>;
   private _channels: IChannels = {};
   private _handlers: { [eventName: string]: DiscordEvent } = {};
+  private _cronJobHandlers: { [jobName: string]: DiscordCronJob } = {};
 
   constructor(config: IDiscordAppConfig) {
     this._config = {
@@ -41,24 +31,29 @@ export class DiscordApp {
       intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
     });
     if (this._config.loadChannelsState) {
-      this._channels = await this._config.loadChannelsState();
+      try {
+        this._channels = await this._config.loadChannelsState().then((res) => res || {});
+      } catch (error) {
+        console.log(error);
+      }
     }
     return this;
   }
 
   private _saveChannels(e: Message<boolean>) {
     const [channelId, channelName] = [e.channelId, (e.channel as any).name];
-    const hashedChannelName = this._hashChannelName(channelName);
+    const hashedChannelName = DiscordUtils.HashChannelName(channelName);
     if (this._channels[hashedChannelName]) {
       return;
     }
     this._channels[hashedChannelName] = channelId;
     if (this._config.saveChannelsState) {
-      this._config.saveChannelsState(this._channels);
+      try {
+        this._config.saveChannelsState(this._channels);
+      } catch (error) {
+        console.log(error);
+      }
     }
-  }
-  private _hashChannelName(channel_name: string) {
-    return Buffer.from(channel_name, 'utf-8').toString('hex');
   }
 
   LoadHandler(cb?: (eventName: string) => void) {
@@ -76,13 +71,17 @@ export class DiscordApp {
         continue;
       }
       for (const h of Object.values(handlers)) {
-        if (!(h instanceof DiscordEvent)) {
+        if (!(h instanceof DiscordEvent) && !(h instanceof DiscordCronJob)) {
           continue;
         }
-        this._handlers[h.GetEventName()] = h;
-        if (cb) {
-          cb(h.GetEventName());
+        if (h instanceof DiscordEvent) {
+          this._handlers[h.GetEventName()] = h;
+          if (cb) {
+            cb(h.GetEventName());
+          }
+          continue;
         }
+        this._cronJobHandlers[h.GetName()] = h.SetContext((new DiscordContext(this._client!) as any)._setChannels(this._channels));
       }
     }
     return this;
@@ -101,7 +100,7 @@ export class DiscordApp {
         .map((e) => e.trim())[0];
       const handlers = this._handlers[eventName]?.GetHandlers();
       if (!handlers?.length) return;
-      const ctx = new DiscordContext(this._client!, e);
+      const ctx = new DiscordEventContext(this._client!, e);
       try {
         for (const h of handlers) {
           await new Promise<void>((resolve, reject) => {
@@ -119,6 +118,20 @@ export class DiscordApp {
       }
     });
   }
+
+  StartCronJobs(cb?: (jobName: string) => void) {
+    const jobs = Object.values(this._cronJobHandlers);
+    if (jobs.length <= 0) {
+      return;
+    }
+    for (const j of jobs) {
+      j.StartJob();
+      if (cb) {
+        cb(j.GetName());
+      }
+    }
+  }
+
   async Listen(cb: (readyClient: Client<true>) => void) {
     if (!this._client) {
       throw new Error("The app have not initialized. Let's call Init() first!");
@@ -131,7 +144,7 @@ export class DiscordApp {
   }
 
   async GetChannelByName(channelName: string) {
-    const channelId = this._channels[this._hashChannelName(channelName)];
+    const channelId = this._channels[DiscordUtils.HashChannelName(channelName)];
     if (!channelId) {
       return null;
     }
@@ -139,14 +152,10 @@ export class DiscordApp {
   }
 }
 
-export interface IDiscordEvent {
-  eventName: string;
-  handlers: ((ctx: DiscordContext) => Promise<void>)[];
-}
 export class DiscordEvent {
   private _eventName: string;
-  private _handlers: ((ctx: DiscordContext) => Promise<void>)[];
-  constructor(e: IDiscordEvent) {
+  private _handlers: ((ctx: DiscordEventContext) => Promise<void>)[];
+  constructor(e: IDiscordEventConfig) {
     this._eventName = e.eventName;
     this._handlers = e.handlers;
   }
@@ -155,5 +164,41 @@ export class DiscordEvent {
   }
   GetHandlers() {
     return this._handlers;
+  }
+}
+
+export interface IDiscordCronConfig {
+  name: string;
+  cron: string;
+  handler: (ctx: DiscordContext) => Promise<void>;
+}
+export class DiscordCronJob {
+  private _name: string;
+  private _job: CronJob;
+  private _ctx?: DiscordContext;
+  constructor(config: IDiscordCronConfig) {
+    this._name = config.name;
+    this._job = CronJob.from({
+      cronTime: config.cron,
+      onTick: async () => {
+        await config.handler(this._ctx!);
+      },
+      start: false,
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+  }
+  GetName() {
+    return this._name;
+  }
+  GetJob() {
+    return this._job;
+  }
+  StartJob() {
+    this._job.start();
+    return;
+  }
+  SetContext(ctx: DiscordContext) {
+    this._ctx = ctx;
+    return this;
   }
 }

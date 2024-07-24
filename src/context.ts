@@ -1,25 +1,49 @@
-import { Client, Message } from 'discord.js';
+import { Client, Message, TextBasedChannel } from 'discord.js';
+import { IChannels } from './interfaces';
+import { DiscordUtils } from './utils';
 import EventEmitter = require('events');
 
 export class DiscordContext {
-  private _client: Client<boolean>;
-  private _event: Message<boolean>;
-  private _e: EventEmitter = new EventEmitter();
-  constructor(client: Client<boolean>, event: Message<boolean>) {
+  protected _client: Client<boolean>;
+  private _channels: IChannels = {};
+  protected _e: EventEmitter = new EventEmitter();
+  constructor(client: Client<boolean>) {
     this._client = client;
-    this._event = event;
-  }
-  IsBot() {
-    return this._event.author.bot;
-  }
-  GetEvent() {
-    return this._event;
   }
   GetClient() {
     return this._client;
   }
-  GetContent() {
-    return this._event.content;
+  async SendTo(channelName: string, content: string, onError?: (err: Error) => void) {
+    try {
+      const chan = await this._getChannelByName(channelName);
+      if (!chan) {
+        onError?.(new Error(`Channel with name ${channelName} not found.`));
+      }
+      await chan?.send(content);
+    } catch (error) {
+      onError?.(error as Error);
+    }
+  }
+
+  private _setChannels(channels: IChannels) {
+    this._channels = channels;
+    return this;
+  }
+
+  private async _getChannelByName(channelName: string) {
+    const channelId = this._channels[DiscordUtils.HashChannelName(channelName)];
+    if (!channelId) {
+      return null;
+    }
+    return await this._client?.channels.fetch(channelId).then((c) => c as TextBasedChannel);
+  }
+}
+
+export class DiscordEventContext extends DiscordContext {
+  private _event: Message<boolean>;
+  constructor(client: Client<boolean>, event: Message<boolean>) {
+    super(client);
+    this._event = event;
   }
   Next() {
     this._e.emit('next');
