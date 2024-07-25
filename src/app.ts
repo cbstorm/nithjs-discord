@@ -1,8 +1,16 @@
 import { CronJob } from 'cron';
 import { Client, Events, GatewayIntentBits, Message, TextBasedChannel } from 'discord.js';
 import * as path from 'path';
-import { DiscordContext, DiscordEventContext } from './context';
-import { IChannels, IDiscordAppConfig, IDiscordEventConfig } from './interfaces';
+import { DiscordContext, DiscordEventAdapterContext, DiscordEventContext } from './context';
+import {
+  IChannels,
+  IDiscordAppConfig,
+  IDiscordCronConfig,
+  IDiscordEventAdapter,
+  IDiscordEventAdapterContext,
+  IDiscordEventConfig,
+  IDiscordFromEventAdapterConfig,
+} from './interfaces';
 import { DiscordUtils, loadFileSync } from './utils';
 
 export class DiscordApp {
@@ -71,7 +79,7 @@ export class DiscordApp {
         continue;
       }
       for (const h of Object.values(handlers)) {
-        if (!(h instanceof DiscordEvent) && !(h instanceof DiscordCronJob)) {
+        if (!(h instanceof DiscordEvent) && !(h instanceof DiscordCronJob) && !(h instanceof DiscordFromEventAdapter)) {
           continue;
         }
         if (h instanceof DiscordEvent) {
@@ -81,7 +89,11 @@ export class DiscordApp {
           }
           continue;
         }
-        this._cronJobHandlers[h.GetName()] = h.SetContext((new DiscordContext(this._client!) as any)._setChannels(this._channels));
+        if (h instanceof DiscordCronJob) {
+          this._cronJobHandlers[h.GetName()] = h.SetContext((new DiscordContext(this._client!) as any)._setChannels(this._channels));
+          continue;
+        }
+        h.SetContext((new DiscordEventAdapterContext(this._client!) as any)._setChannels(this._channels));
       }
     }
     return this;
@@ -167,11 +179,6 @@ export class DiscordEvent {
   }
 }
 
-export interface IDiscordCronConfig {
-  name: string;
-  cron: string;
-  handler: (ctx: DiscordContext) => Promise<void>;
-}
 export class DiscordCronJob {
   private _name: string;
   private _job: CronJob;
@@ -200,5 +207,32 @@ export class DiscordCronJob {
   SetContext(ctx: DiscordContext) {
     this._ctx = ctx;
     return this;
+  }
+}
+
+export class DiscordFromEventAdapter<T> {
+  private _name: string;
+  private _handler: (ctx: IDiscordEventAdapterContext<T>) => Promise<void>;
+  private _event: IDiscordEventAdapter;
+  private _ctx?: IDiscordEventAdapterContext<T>;
+  constructor(config: IDiscordFromEventAdapterConfig<T>) {
+    this._name = config.name;
+    this._handler = config.handler;
+    this._event = (config.event as any)._setEventName(this._name);
+    this._event.on(this._name, (data: T) => {
+      this._handler(this._ctx?.SetData(data));
+    });
+  }
+  GetName() {
+    return this._name;
+  }
+  GetAdapter() {
+    return this._event;
+  }
+  GetHandler() {
+    return this._handler;
+  }
+  SetContext(ctx: IDiscordEventAdapterContext<T>) {
+    this._ctx = ctx;
   }
 }
