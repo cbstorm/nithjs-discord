@@ -1,9 +1,9 @@
 import { Client, Message, TextBasedChannel } from 'discord.js';
-import { IChannels } from './interfaces';
+import { IChannels, IDiscordContext, IDiscordEventAdapterContext } from './interfaces';
 import { DiscordUtils } from './utils';
 import EventEmitter = require('events');
 
-export class DiscordContext {
+export class DiscordContext implements IDiscordContext {
   protected _client: Client<boolean>;
   private _channels: IChannels = {};
   protected _e: EventEmitter = new EventEmitter();
@@ -56,5 +56,16 @@ export class DiscordEventContext extends DiscordContext {
   }
   async ReplyMessage(msg: string) {
     await this._event.reply(msg);
+  }
+}
+
+export class DiscordEventAdapterContext<T> extends DiscordContext implements IDiscordEventAdapterContext<T> {
+  private _data: T | null = null;
+  SetData(data: T) {
+    this._data = data;
+    return this;
+  }
+  GetData(): T {
+    return this._data as T;
   }
 }
