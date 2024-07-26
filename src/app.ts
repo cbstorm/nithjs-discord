@@ -1,5 +1,5 @@
 import { CronJob } from 'cron';
-import { Client, Events, GatewayIntentBits, Message, TextBasedChannel } from 'discord.js';
+import { ChannelManager, Client, Events, GatewayIntentBits, Message, TextBasedChannel, TextChannel } from 'discord.js';
 import * as path from 'path';
 import { DiscordContext, DiscordEventAdapterContext, DiscordEventContext } from './context';
 import {
@@ -26,8 +26,6 @@ export class DiscordApp {
       handlerPath: config.handlerPath || path.join(process.cwd(), 'src', 'modules'),
       handlerPattern: config.handlerPattern || '.discord_handler.js',
       maxLengthOfEventName: config.maxLengthOfEventName || 20,
-      saveChannelsState: config.saveChannelsState,
-      loadChannelsState: config.loadChannelsState,
     };
   }
 
@@ -38,30 +36,16 @@ export class DiscordApp {
     this._client = new Client({
       intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
     });
-    if (this._config.loadChannelsState) {
-      try {
-        this._channels = await this._config.loadChannelsState().then((res) => res || {});
-      } catch (error) {
-        console.log(error);
-      }
-    }
     return this;
   }
 
-  private _saveChannels(e: Message<boolean>) {
-    const [channelId, channelName] = [e.channelId, (e.channel as any).name];
+  private _saveChannels(chan: TextBasedChannel) {
+    const [channelId, channelName] = [chan.id, (chan as any).name];
     const hashedChannelName = DiscordUtils.HashChannelName(channelName);
     if (this._channels[hashedChannelName]) {
       return;
     }
     this._channels[hashedChannelName] = channelId;
-    if (this._config.saveChannelsState) {
-      try {
-        this._config.saveChannelsState(this._channels);
-      } catch (error) {
-        console.log(error);
-      }
-    }
   }
 
   LoadHandler(cb?: (eventName: string) => void) {
@@ -102,10 +86,19 @@ export class DiscordApp {
     if (!this._client) {
       throw new Error("The app have not initialized. Let's call Init() first!");
     }
+    this._client.on('channelDelete', (chan) => {
+      this._assertChannels(chan.client.channels);
+    });
+    this._client.on('channelUpdate', (chan) => {
+      this._assertChannels(chan.client.channels);
+    });
+    this._client.on('channelCreate', (chan) => {
+      this._assertChannels(chan.client.channels);
+    });
     this._client.on('messageCreate', async (e: Message<boolean>) => {
       if (e.author.bot) return;
       if (!e.content) return;
-      this._saveChannels(e);
+      this._saveChannels(e.channel);
       const eventName = e.content
         .slice(0, this._config.maxLengthOfEventName! + 1)
         .split(' ')
@@ -153,7 +146,24 @@ export class DiscordApp {
       cb(readyClient);
     });
     this._listenEvents();
+    this._client.on('ready', (c) => {
+      this._assertChannels(c.channels);
+    });
     await this._client.login(this._config.discordBotToken);
+  }
+
+  private _assertChannels(chans: ChannelManager) {
+    const entries = chans.cache.entries();
+    let done = false;
+    this._channels = {};
+    do {
+      const e = entries.next();
+      done = e.done || false;
+      if (e.value?.[1] instanceof TextChannel) {
+        const hashedChannelName = DiscordUtils.HashChannelName((e.value?.[1] as any)?.name);
+        this._channels[hashedChannelName] = e.value?.[0];
+      }
+    } while (!done);
   }
 
   async GetChannelByName(channelName: string) {

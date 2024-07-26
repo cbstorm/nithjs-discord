@@ -10,8 +10,6 @@ export interface IDiscordAppConfig {
   handlerPath?: string;
   handlerPattern?: string;
   maxLengthOfEventName?: number;
-  saveChannelsState?: (channels: IChannels) => void;
-  loadChannelsState?: () => Promise<IChannels>;
 }
 
 export interface IDiscordEventConfig {
