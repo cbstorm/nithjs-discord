@@ -70,7 +70,7 @@ export class DiscordEventContext extends DiscordContext {
   }
 
   GetContent() {
-    return this._event.content.replaceAll(this._eventName || '', '').trim();
+    return this._event.content.replace(this._eventName!, '').trim();
   }
 }
 
