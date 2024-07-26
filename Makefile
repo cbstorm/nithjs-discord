@@ -9,6 +9,7 @@ install:
 link:
 	npm link
 publish:
+	npm run build
 	npm publish --access public
 clean: 
 	rm -rf node_modules

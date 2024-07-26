@@ -1,6 +1,6 @@
 {
   "name": "nithjs-discord",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": ".out/main.js",
   "types": ".out/main.d.ts",
   "scripts": {
