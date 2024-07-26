@@ -113,6 +113,7 @@ export class DiscordApp {
       const handlers = this._handlers[eventName]?.GetHandlers();
       if (!handlers?.length) return;
       const ctx = new DiscordEventContext(this._client!, e);
+      (ctx as any)._setEventName(eventName);
       try {
         for (const h of handlers) {
           await new Promise<void>((resolve, reject) => {

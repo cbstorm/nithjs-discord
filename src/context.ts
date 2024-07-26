@@ -40,11 +40,22 @@ export class DiscordContext implements IDiscordContext {
 }
 
 export class DiscordEventContext extends DiscordContext {
+  private _eventName?: string;
   private _event: Message<boolean>;
   constructor(client: Client<boolean>, event: Message<boolean>) {
     super(client);
     this._event = event;
   }
+
+  private _setEventName(eventName: string) {
+    this._eventName = eventName;
+    return this;
+  }
+
+  GetEventName() {
+    return this._eventName;
+  }
+
   Next() {
     this._e.emit('next');
     return;
@@ -56,6 +67,10 @@ export class DiscordEventContext extends DiscordContext {
   }
   async ReplyMessage(msg: string) {
     await this._event.reply(msg);
+  }
+
+  GetContent() {
+    return this._event.content.replaceAll(this._eventName || '', '').trim();
   }
 }
 
