@@ -56,6 +56,14 @@ export class DiscordEventContext extends DiscordContext {
     return this._eventName;
   }
 
+  GetEvent() {
+    return this._event;
+  }
+
+  GetContent() {
+    return this._event.content.replace(this._eventName!, '').trim();
+  }
+
   Next() {
     this._e.emit('next');
     return;
@@ -68,9 +76,8 @@ export class DiscordEventContext extends DiscordContext {
   async ReplyMessage(msg: string) {
     await this._event.reply(msg);
   }
-
-  GetContent() {
-    return this._event.content.replace(this._eventName!, '').trim();
+  async Typing() {
+    await this._event.channel.sendTyping();
   }
 }
 
