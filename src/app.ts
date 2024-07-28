@@ -1,5 +1,5 @@
 import { CronJob } from 'cron';
-import { ChannelManager, Client, Events, GatewayIntentBits, Message, TextBasedChannel, TextChannel } from 'discord.js';
+import { ChannelManager, Client, codeBlock, Events, GatewayIntentBits, Message, TextBasedChannel, TextChannel } from 'discord.js';
 import * as path from 'path';
 import { DiscordContext, DiscordEventAdapterContext, DiscordEventContext } from './context';
 import {
@@ -98,13 +98,14 @@ export class DiscordApp {
     this._client.on('messageCreate', async (e: Message<boolean>) => {
       if (e.author.bot) return;
       if (!e.content) return;
+      e.content = e.content + ' ';
       this._saveChannels(e.channel);
-      const eventName = e.content
-        .slice(0, this._config.maxLengthOfEventName! + 1)
-        .split(' ')
-        .map((e) => e.trim())[0];
+      const eventName = e.content.slice(0, e.content.indexOf(' '));
       const handlers = this._handlers[eventName]?.GetHandlers();
-      if (!handlers?.length) return;
+      if (!handlers?.length) {
+        if (eventName != '!help') return;
+        return this._handleHelpCommand(e);
+      }
       const ctx = new DiscordEventContext(this._client!, e);
       (ctx as any)._setEventName(eventName);
       try {
@@ -172,6 +173,14 @@ export class DiscordApp {
       return null;
     }
     return await this._client?.channels.fetch(channelId).then((c) => c as TextBasedChannel);
+  }
+
+  private async _handleHelpCommand(e: Message<boolean>) {
+    let content = '';
+    for (const h of Object.keys(this._handlers)) {
+      content = content.concat(`${h}\n`);
+    }
+    await e.reply(codeBlock(content));
   }
 }
 
