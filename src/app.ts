@@ -1,5 +1,14 @@
 import { CronJob } from 'cron';
-import { ChannelManager, Client, codeBlock, Events, GatewayIntentBits, Message, TextBasedChannel, TextChannel } from 'discord.js';
+import {
+  ChannelManager,
+  Client,
+  codeBlock,
+  Events,
+  GatewayIntentBits,
+  Message,
+  TextBasedChannel,
+  TextChannel,
+} from 'discord.js';
 import * as path from 'path';
 import { DiscordContext, DiscordEventAdapterContext, DiscordEventContext } from './context';
 import {
@@ -34,7 +43,12 @@ export class DiscordApp {
       throw new Error("Discord Bot token is required. Let's check the config again!");
     }
     this._client = new Client({
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+      ],
     });
     return this;
   }
@@ -74,7 +88,9 @@ export class DiscordApp {
           continue;
         }
         if (h instanceof DiscordCronJob) {
-          this._cronJobHandlers[h.GetName()] = h.SetContext((new DiscordContext(this._client!) as any)._setChannels(this._channels));
+          this._cronJobHandlers[h.GetName()] = h.SetContext(
+            (new DiscordContext(this._client!) as any)._setChannels(this._channels)
+          );
           continue;
         }
         h.SetContext((new DiscordEventAdapterContext(this._client!) as any)._setChannels(this._channels));
@@ -162,7 +178,6 @@ export class DiscordApp {
   private _assertChannels(chans: ChannelManager) {
     const entries = chans.cache.entries();
     let done = false;
-    this._channels = {};
     do {
       const e = entries.next();
       done = e.done || false;
