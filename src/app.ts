@@ -19,13 +19,13 @@ export class DiscordApp {
   private _channels: IChannels = {};
   private _handlers: { [eventName: string]: DiscordEvent } = {};
   private _cronJobHandlers: { [jobName: string]: DiscordCronJob } = {};
+  private _stats: { startAt?: Date } = {};
 
   constructor(config: IDiscordAppConfig) {
     this._config = {
       discordBotToken: config.discordBotToken,
       handlerPath: config.handlerPath || path.join(process.cwd(), 'src', 'modules'),
       handlerPattern: config.handlerPattern || '.discord_handler.js',
-      maxLengthOfEventName: config.maxLengthOfEventName || 20,
     };
   }
 
@@ -103,8 +103,13 @@ export class DiscordApp {
       const eventName = e.content.slice(0, e.content.indexOf(' '));
       const handlers = this._handlers[eventName]?.GetHandlers();
       if (!handlers?.length) {
-        if (eventName != '!help') return;
-        return this._handleHelpCommand(e);
+        if (eventName == '!help') {
+          return this._handleHelpCommand(e);
+        }
+        if (eventName == '!stats') {
+          return this._handleStatCommand(e);
+        }
+        return;
       }
       const ctx = new DiscordEventContext(this._client!, e);
       (ctx as any)._setEventName(eventName);
@@ -149,6 +154,7 @@ export class DiscordApp {
     this._listenEvents();
     this._client.on('ready', (c) => {
       this._assertChannels(c.channels);
+      this._stats.startAt = new Date();
     });
     await this._client.login(this._config.discordBotToken);
   }
@@ -179,6 +185,14 @@ export class DiscordApp {
     let content = '';
     for (const h of Object.keys(this._handlers)) {
       content = content.concat(`${h}\n`);
+    }
+    await e.reply(codeBlock(content));
+  }
+
+  private async _handleStatCommand(e: Message<boolean>) {
+    let content = '';
+    for (const e of Object.entries(this._stats)) {
+      content = content.concat(`${e[0]}: ${e[1]}\n`);
     }
     await e.reply(codeBlock(content));
   }

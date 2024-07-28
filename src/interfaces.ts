@@ -9,7 +9,6 @@ export interface IDiscordAppConfig {
   discordBotToken: string;
   handlerPath?: string;
   handlerPattern?: string;
-  maxLengthOfEventName?: number;
 }
 
 export interface IDiscordEventConfig {
