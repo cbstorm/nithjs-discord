@@ -80,8 +80,8 @@ export class DiscordEventContext extends DiscordContext {
   async ReplyMessage(msg: string) {
     await this._event.reply(msg);
   }
-  async ReplyFile(f_path: string) {
-    await this._event.reply({ files: [f_path] });
+  async ReplyFile(f_path: string, opts?: { with_text?: string }) {
+    await this._event.reply({ content: opts?.with_text, files: [f_path] });
   }
 }
 
