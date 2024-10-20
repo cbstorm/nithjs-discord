@@ -1,4 +1,4 @@
-import { Client, Message, RawFile, TextBasedChannel } from 'discord.js';
+import { Client, Message, TextBasedChannel } from 'discord.js';
 import { IChannels, IDiscordContext, IDiscordEventAdapterContext } from './interfaces';
 import { DiscordUtils } from './utils';
 import EventEmitter = require('events');
@@ -80,8 +80,8 @@ export class DiscordEventContext extends DiscordContext {
   async ReplyMessage(msg: string) {
     await this._event.reply(msg);
   }
-  async ReplyFile(file: RawFile) {
-    await this._event.reply({ files: [file as any] });
+  async ReplyFile(f_path: string) {
+    await this._event.reply({ files: [f_path] });
   }
 }
 
