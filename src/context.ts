@@ -1,4 +1,4 @@
-import { Client, Message, TextBasedChannel } from 'discord.js';
+import { Client, Message, RawFile, TextBasedChannel } from 'discord.js';
 import { IChannels, IDiscordContext, IDiscordEventAdapterContext } from './interfaces';
 import { DiscordUtils } from './utils';
 import EventEmitter = require('events');
@@ -18,8 +18,9 @@ export class DiscordContext implements IDiscordContext {
       const chan = await this._getChannelByName(channelName);
       if (!chan) {
         onError?.(new Error(`Channel with name ${channelName} not found.`));
+        return;
       }
-      await chan?.send(content);
+      await (chan as any)?.send(content);
     } catch (error) {
       onError?.(error as Error);
     }
@@ -73,11 +74,14 @@ export class DiscordEventContext extends DiscordContext {
       return this._e.once('next', () => resolve());
     });
   }
+  async Typing() {
+    await (this._event.channel as any).sendTyping();
+  }
   async ReplyMessage(msg: string) {
     await this._event.reply(msg);
   }
-  async Typing() {
-    await this._event.channel.sendTyping();
+  async ReplyFile(file: RawFile) {
+    await this._event.reply({ files: [file as any] });
   }
 }
 

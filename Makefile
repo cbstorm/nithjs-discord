@@ -4,7 +4,7 @@ all: build
 build:
 	rm -rf .out
 	npm run build
-install:
+deps:
 	npm install
 link:
 	npm link
