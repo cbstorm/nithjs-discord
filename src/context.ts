@@ -1,4 +1,4 @@
-import { Client, Message, TextBasedChannel } from 'discord.js';
+import { AttachmentBuilder, Client, Message, TextBasedChannel } from 'discord.js';
 import { IChannels, IDiscordContext, IDiscordEventAdapterContext } from './interfaces';
 import { DiscordUtils } from './utils';
 import EventEmitter = require('events');
@@ -82,6 +82,13 @@ export class DiscordEventContext extends DiscordContext {
   }
   async ReplyFile(f_path: string, opts?: { with_text?: string }) {
     await this._event.reply({ content: opts?.with_text, files: [f_path] });
+  }
+  async ReplyImages(src: string[], opts?: { with_text?: string }) {
+    const attachments = [];
+    for (const s of src) {
+      attachments.push(new AttachmentBuilder(s, { description: 'img' }));
+    }
+    await (this._event.channel as any).send({ files: attachments });
   }
 }
 
